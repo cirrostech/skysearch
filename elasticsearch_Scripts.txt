@@ -1,0 +1,51 @@
+import requests, json, os
+from elasticsearch import Elasticsearch
+res = requests.get('http://192.168.0.25:9200')
+es = Elasticsearch([{'host': '192.168.0.25', 'port': '9200'}])
+with open('dataset\helpdesk.txt') as json_file:
+    data = json.load(json_file)
+i=1
+for p in data:
+  es.index(index='knowledgebase', ignore=400,  id=i, body=p)
+  i = i + 1
+
+
+PUT /knowledgebase
+{
+  "settings": {
+    "number_of_shards": 1,
+    "analysis": {
+      "analyzer": {
+        "trimmer": {
+          "type": "custom",
+          "filter": [ "trim" ],
+          "tokenizer": "keyword"
+        }
+      }
+    }
+  },
+  "mappings": {
+    "properties": {      
+        "date_received": { "type": "date" },
+        "product": { "type": "text", "fielddata": true, "analyzer": "trimmer" },
+        "sub_product": { "type": "text", "fielddata": true, "analyzer": "trimmer" },
+        "issue": { "type": "text" },
+        "sub_issue": { "type": "text" },
+        "complaint_what_happened": { "type": "text" },
+        "company_public_response": { "type": "text" },
+        "company": { "type": "text" },
+        "state": { "type": "text" },
+        "zip_code": { "type": "text" },
+        "tags": { "type": "text" },
+        "consumer_consent_provided": { "type": "text" },
+        "submitted_via": { "type": "text" },
+        "date_sent_to_company": { "type": "date" },
+        "company_response": { "type": "text" },
+        "timely": { "type": "text" },
+        "consumer_disputed": { "type": "text" },
+        "complaint_id": { "type": "integer" }
+    },
+  }
+  
+}
+
