@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Search demo site</title>
+</head>
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js" integrity="sha256-VazP97ZCwtekAsvgPBSUwPFKdrwD3unUfSGVYrahUqU=" crossorigin="anonymous"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js"></script>
+
+<body>
+<h1>Elasticsearch client side demo</h1>
+
+<div id="search_container">
+    <label for"search">Search</label>
+    <input type="text" id="search"/>
+    <label for"type">Type</label>
+    <input type="radio" name="type" id="type" value="" checked>All
+    <input type="radio" name="type" id="type" value="faq">FAQ
+    <input type="radio" name="type" id="type" value="ticket"> Ticket
+    <input type="radio" name="type" id="type" value="cloudpage">Cloud Page
+    <input type="radio" name="type" id="type" value="stackoverflow"> StackOverflow
+
+    <input type="submit" onclick="doSearch(document.getElementById('search').value, getRadioButtonValue('type'), 0);"/>
+</div>
+
+<div id="total"></div>
+<ul class="pagination" id="pagination">
+</ul>
+<div id="hits"></div>
+
+
+<div id="aggregate"></div>
+
+
+
+<script type="application/javascript">
+  /**
+   * Performs a search request against an Elasticsearch server.
+   * @param {string} needle
+   *   The string to search for.
+   * @param {string} filter
+   *   A string to use to filter by type. For example: 'article';
+   */
+  function doSearch (needle, filter, page_from) {
+    
+    var searchHost = 'http://localhost:8005/search';
+    var body = {
+      'size': 20
+    };
+    
+    if ((needle.length !== 0) && ((typeof filter !== 'undefined') || (filter.length !== 0))) {
+      var query = {
+        'bool': {}
+      };
+            
+      if (needle.length !== 0) {
+        query.search_term = needle
+        console.log("Search Term:" + needle);
+      } else {
+        console.log("No search term provided");
+      }
+      if ((typeof filter !== 'undefined') && (filter.length !== 0)) {
+        query.bool.filter = {
+          'term': {
+            'type': filter
+          }
+        };
+      }
+
+      query.page_from = page_from
+      body.query = query;
+      // Perform the request.
+      var xmlHttp = new XMLHttpRequest();
+      xmlHttp.open('POST', searchHost, false);
+      xmlHttp.setRequestHeader('Content-Type', 'application/json;charset=UTF-8');
+      console.log("Payload" + JSON.stringify(body));
+      xmlHttp.send(JSON.stringify(body));
+      var response = JSON.parse(xmlHttp.responseText);
+    
+      var products =  response.hits.hits;
+      var aggregations =  response.aggregations.sub_product.buckets;
+      console.log(aggregations);
+      if ( aggregations.length > 0 ){
+        var aggregations_output = '';
+        for (var j = 0; j < aggregations.length; j++){
+        //  console.log(aggregations[j].key + " (" + aggregations[j].doc_count + ")");<a class="page-link" href="javascript:void(0)" >
+          aggregations_output += '<li >' + '<a class="aggregate-item" href="javascript:void(0)" onclick="doSearch(document.getElementById(\"search\").value, getRadioButtonValue(\"type\"), 0, "'+ aggregations[j].key +'" );" >' + aggregations[j].key + ' (' + aggregations[j].doc_count + ')' +  '</a></li>';
+         // $('#pagination').append('<div class="page-item" id="'+ j +'"><a class="page-link" href="javascript:void(0)" >' + j + '</a></li>');
+        }
+        document.getElementById('aggregate').innerHTML = aggregations_output;
+      }
+      
+
+      var output = '';
+      var totalPages = response.hits.total.value/10 ;
+      
+      generatePaging(totalPages);
+      
+      for (var i = 0; i < response.hits.hits.length; i++) {
+        output += '<h3>' +  response.hits.hits[i]._id  + response.hits.hits[i]._source.issue + '</h3>';
+      }
+      
+      //document.getElementById('total').innerHTML = '<h2>Showing ' + response.hits.hits.length + ' results of ' + response.hits.total.value + '</h2>';
+      document.getElementById('hits').innerHTML = output;
+
+    }
+  
+  }
+
+  function generatePaging (totalPages){
+    var page = 10;
+    
+    $("#total").empty();
+    $("#pagination").empty();  
+    $("#hits").empty();
+
+    for (var j = 1; j < totalPages + 1 ; j++) {
+      $('#pagination').append('<li class="page-item" id="'+ j +'"><a class="page-link" href="javascript:void(0)" >' + j + '</a></li>');
+    }
+
+    $("li.page-item").on("click", function () {
+      var current;
+      current = $(this).index() ;
+      fromPage = current * 10;
+      
+      doSearch(document.getElementById('search').value, getRadioButtonValue('type'), fromPage);
+
+    });
+
+  }
+  /**
+   * Helper function to obtain the value of a set of radio buttons.
+   *
+   * @param {string} name
+   *   The name of the radio elements.
+   * @returns {string}
+   *   The selected value or an empty string if nothing was selected.
+   */
+  function getRadioButtonValue (name) {
+    var radios = document.getElementsByName(name);
+
+    for (var i = 0, length = radios.length; i < length; i++) {
+      if (radios[i].checked) {
+        return radios[i].value;
+      }
+    }
+    return '';
+  }
+
+  
+</script>
+</body>
+</html>

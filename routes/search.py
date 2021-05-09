@@ -1,0 +1,67 @@
+from flask import Blueprint,render_template,request,jsonify
+import requests,json
+from requests.auth import HTTPBasicAuth
+
+# creating a Blueprint class
+search_blueprint = Blueprint('search',__name__,template_folder="templates")
+search_term = ""
+
+base_url = "http://192.168.0.25:9200/"
+
+
+headers = {
+    'Content-Type': "application/json",
+    'cache-control': "no-cache",
+}
+
+
+@search_blueprint.route("/",methods=['GET'],endpoint='index')
+def index():
+
+  return render_template("index.html")
+
+@search_blueprint.route("/search",methods=['GET','POST'],endpoint='search')
+def search():
+  querystring = json.loads(request.data)
+  print("Payload Body: {querystring}".format(querystring=querystring))
+  
+  search_term = querystring["query"]["search_term"]
+  page_from = querystring["query"]["page_from"]
+
+  print("Search Term:{search_term}".format(search_term=search_term))
+  url = "http://192.168.0.25:9200"
+
+  if request.method == 'POST':
+    _from = 0
+  elif request.method == 'GET':
+    _from = querystring
+
+
+  payload = {
+    "query": {
+      "query_string": {
+      "analyze_wildcard": True,
+      "query": str(search_term),
+      "fields": ["issue", "company"]
+      }
+    },     
+    "from": page_from,
+    "size": 10,
+    "sort": [],
+    "aggs" : {
+    	"sub_product" : {
+        	"terms" : { "field" : "sub_product", "size": 100 }
+    	}
+	}
+  }
+  print("Payload {payload}".format(payload=payload))
+  payload = json.dumps(payload)
+  url = url + "/knowledgebase/_search"
+  print("URL:{url}".format(url=url))
+  response = requests.request("GET",url, data=payload, headers=headers)
+#  print("Response {response}".format(response=response.text))
+  response_dict_data = json.loads(str(response.text))
+       
+  return json.dumps(response_dict_data)
+
+
