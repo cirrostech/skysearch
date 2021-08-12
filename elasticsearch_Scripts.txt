@@ -76,3 +76,30 @@ PUT /knowledgebase
 }
 }
 
+http://192.168.0.25:9200/_ingest/pipeline/_simulate
+
+{
+  "pipeline" :{
+  "description": "date pipeline ",
+  "processors": [
+    {
+        "script": {
+          "source": "SimpleDateFormat format = new SimpleDateFormat(\"yyyy-MM-dd\");\nctx.birthDate = format.format(format.parse(ctx.birthDate));\nif (ctx.Opened_at != null) {ctx.Opened_at = format.format(format.parse(ctx.Opened_at));}\nif(ctx.type.queue != null){ctx.type.queue = ctx.type.queue;}else{ctx.type.queue=\"ATLAS\";}"
+        }
+    }
+  ]},
+  "docs": [
+    {
+      "_index": "index",
+      "_type": "_doc",
+      "_id": "id",
+       "_source": {
+            "birthDate": "1950-01-01T12:00:00.000Z",
+            "Opened_at": null,
+            "type": { "category": "EKS", "service": "value"}
+       }
+    }
+  ]
+}
+}
+
